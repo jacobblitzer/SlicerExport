@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net48;net7.0</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>SlicerExport.Grasshopper</RootNamespace>
+    <AssemblyName>SlicerExport.Grasshopper</AssemblyName>
+    <!-- Output .gha instead of .dll so Grasshopper recognises the plugin -->
+    <TargetExt>.gha</TargetExt>
+    <!-- GH libraries folder for auto-deploy -->
+    <GrasshopperLibDir>$(APPDATA)\Grasshopper\Libraries\SlicerExport</GrasshopperLibDir>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\SlicerExport.Core\SlicerExport.Core.csproj" />
+    <ProjectReference Include="..\SlicerExport.Rhino\SlicerExport.Rhino.csproj" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <PackageReference Include="Grasshopper" Version="7.13.21348.13001" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net7.0'">
+    <PackageReference Include="Grasshopper" Version="8.0.23304.1001" />
+  </ItemGroup>
+  <!-- Copy output to GH Libraries as .gha on build -->
+  <Target Name="CopyToGrasshopper" AfterTargets="Build" Condition="'$(TargetFramework)' == 'net7.0' And Exists('$(APPDATA)\Grasshopper')">
+    <MakeDir Directories="$(GrasshopperLibDir)" />
+    <Copy SourceFiles="$(TargetDir)SlicerExport.Grasshopper.gha" DestinationFiles="$(GrasshopperLibDir)\SlicerExport.Grasshopper.gha" />
+    <Copy SourceFiles="$(TargetDir)SlicerExport.Core.dll" DestinationFiles="$(GrasshopperLibDir)\SlicerExport.Core.dll" />
+    <Copy SourceFiles="$(TargetDir)SlicerExport.Rhino.dll" DestinationFiles="$(GrasshopperLibDir)\SlicerExport.Rhino.dll" />
+    <Message Text="Deployed to $(GrasshopperLibDir)" Importance="high" />
+  </Target>
+</Project>

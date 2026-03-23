@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Drawing;
+using System.Reflection;
 using Grasshopper.Kernel;
 using SlicerExport.Core;
 
@@ -14,6 +16,16 @@ namespace SlicerExport.Grasshopper
         { }
 
         public override Guid ComponentGuid => new Guid("c3d4e5f6-a7b8-9012-cdef-123456789012");
+
+        protected override Bitmap Icon
+        {
+            get
+            {
+                var stream = Assembly.GetExecutingAssembly()
+                    .GetManifestResourceStream("SlicerExport.Grasshopper.Resources.BambuStudio_24.png");
+                return stream != null ? new Bitmap(stream) : null;
+            }
+        }
 
         protected override void RegisterInputParams(GH_InputParamManager pManager)
         {

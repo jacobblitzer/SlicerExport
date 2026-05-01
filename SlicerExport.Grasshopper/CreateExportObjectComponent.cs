@@ -26,7 +26,7 @@ namespace SlicerExport.Grasshopper
             get
             {
                 var stream = Assembly.GetExecutingAssembly()
-                    .GetManifestResourceStream("SlicerExport.Grasshopper.Resources.OrcaSlicer_24.png");
+                    .GetManifestResourceStream("SlicerExport.Grasshopper.Resources.slic3ricon_24.png");
                 return stream != null ? new Bitmap(stream) : null;
             }
         }

@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+#
+# Blocks commits that ADD placeholder / LLM-attractor GUIDs.
+#
+# A GUID typed by an AI assistant is not random -- it is sampled from the model's
+# training distribution, which clusters hard on a handful of "canonical"
+# placeholder values (sequential nibble-walks, the RFC 4122 example, the
+# Wikipedia COM example, all-zeros...). Two independently AI-generated projects
+# collide far more often than 122 bits of entropy implies. Real GUIDs come from
+# a CSPRNG: [guid]::NewGuid()  /  Guid.NewGuid()  /  uuidgen.
+#
+# Only NEWLY ADDED lines are scanned, so pre-existing placeholders never block an
+# unrelated commit -- but no new ones can sneak in.
+#
+# Deploy to another repo:
+#   cp -r .githooks <repo>/ && (cd <repo> && git config core.hooksPath .githooks)
+#
+# Intentional reference to a built-in/external GUID (e.g. a Grasshopper built-in
+# component): commit with --no-verify.
+
+set -u
+
+walks='a1b2c3d4|b2c3d4e5|c3d4e5f6|d4e5f6a7|e5f6a7b8|f6a7b8c9'
+walks="$walks|1a2b3c4d|2b3c4d5e|3c4d5e6f|4d5e6f7a|5e6f7a8b|6f7a8b9c|7a8b9c0d|8b9c0d1e|9c0d1e2f"
+walk_rx="\\b(${walks})-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\b"
+
+consts='00000000-0000-0000-0000-000000000000'
+consts="$consts|11111111-1111-1111-1111-111111111111"
+consts="$consts|12345678-1234-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+consts="$consts|f47ac10b-58cc-4372-a567-0e02b2c3d479"   # RFC 4122 example
+consts="$consts|123e4567-e89b-12d3-a456-426614174000"   # common doc example
+consts="$consts|3f2504e0-4f89-41d3-9a0c-0305e82c3301"   # Wikipedia/COM example
+consts="$consts|10000000-1000-4000-8000-100000000000"
+consts="$consts|aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+consts="$consts|deadbeef-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+
+rx="(${walk_rx})|(${consts})"
+skip='(^|/)(bin|obj|\.vs|\.git|node_modules|packages|dist|build|vendor|docs)/'
+
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+fail=0
+old_ifs="$IFS"
+IFS='
+'
+for file in $staged; do
+  [ -z "$file" ] && continue
+  case "$file" in
+    *.cs|*.csproj|*.sln|*.fs|*.vb) ;;
+    *) continue ;;
+  esac
+  printf '%s' "$file" | grep -Eq "$skip" && continue
+  # Inspect only the lines this commit ADDS.
+  hits=$(git diff --cached -U0 -- "$file" | grep -E '^\+[^+]' | grep -iE "$rx")
+  if [ -n "$hits" ]; then
+    if [ "$fail" -eq 0 ]; then
+      echo "ERROR: placeholder / non-random GUID(s) in newly added lines:" >&2
+      echo >&2
+    fi
+    fail=1
+    echo "  $file:" >&2
+    printf '%s\n' "$hits" | sed 's/^+//; s/^/      /' >&2
+  fi
+done
+IFS="$old_ifs"
+
+if [ "$fail" -ne 0 ]; then
+  echo >&2
+  echo "These look hand-typed, not generated. Use a real CSPRNG GUID:" >&2
+  echo "  PowerShell: [guid]::NewGuid()    C#: Guid.NewGuid()    Unix: uuidgen" >&2
+  echo "Intentional reference to a built-in/external GUID? bypass: git commit --no-verify" >&2
+  exit 1
+fi
+exit 0
